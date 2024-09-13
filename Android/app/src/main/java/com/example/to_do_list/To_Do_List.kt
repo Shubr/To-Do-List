@@ -1,10 +1,5 @@
 package com.example.to_do_list
 
-import android.app.Dialog
-import android.app.LocaleConfig
-import android.app.TimePickerDialog
-import android.icu.text.RelativeDateTimeFormatter.RelativeDateTimeUnit
-import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,17 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerColors
-import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,7 +33,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,17 +46,23 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 
 @Composable
 fun To_Do_List() {
-    var taskList = remember {
-        mutableListOf("")
+    var taskList by remember {
+        mutableStateOf(listOf<Triple<String,String,String>>())
+    }
+
+    var addTaskWindow by remember {
+        mutableStateOf(false)
     }
 
     Box(modifier = Modifier
@@ -92,23 +89,29 @@ fun To_Do_List() {
                     .height((LocalConfiguration.current.screenHeightDp - 180).dp)
                     , verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                    Task_card()
-                    Task_card()
-                    Task_card()
+                    LazyColumn {
+                        items(taskList){task->
+                            Task_card(task = task.first, date = task.second, time = task.third)
+                        }
+                    }
                 }
-                IconButton(onClick = { /*TODO*/ }) {
+                IconButton(onClick = { addTaskWindow = !addTaskWindow }) {
                     Icon(Icons.Filled.AddCircle, contentDescription = null, modifier = Modifier.size(60.dp), tint = Color.White)
                 }
             }
         }
 
     }
-    Add_task()
+    if(addTaskWindow){
+        Add_task {
+            task -> taskList = taskList + task
+        }
+    }
 
 
 }
 @Composable
-fun Task_card() {
+fun Task_card(task:String, date:String, time:String) {
     var buttonPressed by remember {mutableStateOf(false)}
     Box(modifier = Modifier
         .fillMaxWidth()
@@ -129,10 +132,10 @@ fun Task_card() {
 
             VerticalDivider(thickness = (1.5).dp, color = Color.Black)
             Column(modifier = Modifier.fillMaxHeight()) {
-                Text(text = "Monday 20 2:30", fontSize = 20.sp,modifier = Modifier
+                Text(text = "$date $time", fontSize = 20.sp,modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 5.dp), textAlign = TextAlign.Center)
-                Text(text = "Clean up the house", fontWeight = FontWeight.Bold, fontSize = 25.sp, modifier = Modifier
+                Text(text =  task, fontWeight = FontWeight.Bold, fontSize = 25.sp, modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp), textAlign = TextAlign.Center)
             }
@@ -143,12 +146,11 @@ fun Task_card() {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview
 @Composable
-fun Add_task() {
+fun Add_task(onTaskAdd:(Triple<String, String, String>)->Unit) {
     var task by remember{mutableStateOf("")}
     var date by remember{ mutableStateOf("") }
-    var time = remember{mutableStateOf("")}
+    var time by remember{mutableStateOf("")}
     val datePicker = rememberDatePickerState()
     val timePicker = rememberTimePickerState()
     var dateWindow by remember {
@@ -162,7 +164,7 @@ fun Add_task() {
 
         Box(modifier = Modifier
             .width((LocalConfiguration.current.screenWidthDp - 50).dp)
-            .height((LocalConfiguration.current.screenHeightDp - 400).dp)
+            .height((LocalConfiguration.current.screenHeightDp - 500).dp)
             .clip(RoundedCornerShape(10.dp))
             .background(Color.White)
             .border(BorderStroke(1.dp, Color.Black), RoundedCornerShape(10.dp))){
@@ -171,6 +173,7 @@ fun Add_task() {
             Column(modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp, vertical = 50.dp), verticalArrangement =Arrangement.spacedBy(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Add-Task", fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 TextField(modifier = Modifier
                     .fillMaxWidth()
                     .border(BorderStroke(1.dp, Color.Black), RoundedCornerShape(10.dp)),placeholder = { Text(text = "Task", fontWeight = FontWeight.Bold)},value = task, onValueChange = { newTask -> task = newTask},
@@ -181,19 +184,58 @@ fun Add_task() {
                     .height(55.dp)) {
                     Text(text = date.ifEmpty { "Select Date" }, fontWeight = FontWeight.Bold, color = Color.DarkGray, fontSize = 15.sp, modifier = Modifier.fillMaxWidth())
                 }
+                TextButton(onClick = { timeWindow = true }, modifier = Modifier
+                    .border(BorderStroke(1.dp, Color.Black), RoundedCornerShape(10.dp))
+                    .fillMaxWidth()
+                    .height(55.dp)) {
+                    Text(text = time.ifEmpty { "Select Time" }, fontWeight = FontWeight.Bold, color = Color.DarkGray, fontSize = 15.sp, modifier = Modifier.fillMaxWidth())
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    TextButton(onClick = {
+                        if(task.isNotEmpty() || date.isNotEmpty() || time.isNotEmpty()){
+                            onTaskAdd(Triple(task,date,time))
+                        }
+                    }) {
+                        Text(text = "Add", fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+                }
                 if(dateWindow){
                     DatePickerDialog(onDismissRequest = {  }, dismissButton = { TextButton(onClick = { dateWindow = false }) {
                         Text(text = "Close")
-                    }
-                                                                             },confirmButton = { TextButton(onClick = { date = datePicker.selectedDateMillis.toString()
+                    } },confirmButton = { TextButton(onClick = { val formatted = datePicker.selectedDateMillis?.let {
+                        SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date(it))
+                    } ?: "No date Selected"
+                        date = formatted
                     dateWindow = false}) {
                         Text(text = "Select")
                     } }) {
                         DatePicker(state = datePicker)
                     }
                 }
-                Dialog
-                
+                if(timeWindow){
+                    AlertDialog(
+                        onDismissRequest = {  },
+                        dismissButton = {
+                            TextButton(onClick = { timeWindow = false}) {
+                                Text("Dismiss")
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val calander = java.util.Calendar.getInstance()
+                                calander.set(java.util.Calendar.HOUR_OF_DAY, timePicker.hour)
+                                calander.set(java.util.Calendar.MINUTE, timePicker.minute)
+
+                                val formatted = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(calander.time)
+                                time = formatted
+                                timeWindow = false
+                            }) {
+                                Text("OK")
+                            }
+                        },
+                        text = { TimePicker(state =timePicker) }
+                    )
+                }
             }
 
         }
